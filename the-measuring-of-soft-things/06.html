@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Measuring of Soft Things — Mycelial Pulse</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #07050a; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="800"></canvas>
+<script>
+(function () {
+  const W = 800, H = 800, TAU = Math.PI * 2;
+  const cvs = document.getElementById('c');
+  const ctx = cvs.getContext('2d');
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const octx = off.getContext('2d');
+
+  let seed = 140701;
+  function rng() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  function rand(a, b) { return a + (b - a) * rng(); }
+  function gauss() { return (rng() + rng() + rng() - 1.5) * 0.8165; }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function mix(a, b, t) { return a + (b - a) * t; }
+
+  const perm = new Uint8Array(512);
+  (function () {
+    const p = [];
+    for (let i = 0; i < 256; i++) p[i] = i;
+    for (let i = 255; i > 0; i--) { const j = (rng() * (i + 1)) | 0; const t = p[i]; p[i] = p[j]; p[j] = t; }
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+  })();
+  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function valNoise(x, y) {
+    const xi = x | 0, yi = y | 0, xf = x - xi, yf = y - yi;
+    const u = fade(xf), v = fade(yf);
+    const A = perm[(xi + perm[yi & 255]) & 255] / 255;
+    const B = perm[(xi + 1 + perm[yi & 255]) & 255] / 255;
+    const C = perm[(xi + perm[(yi + 1) & 255]) & 255] / 255;
+    const D = perm[(xi + 1 + perm[(yi + 1) & 255]) & 255] / 255;
+    return (A + (B - A) * u) + ((C + (D - C) * u) - (A + (B - A) * u)) * v;
+  }
+  function fbm(x, y) {
+    let s = 0, a = 0.5, f = 1;
+    for (let o = 0; o < 4; o++) { s += a * valNoise(x * f, y * f); f *= 2; a *= 0.5; }
+    return s / 0.9375;
+  }
+
+  // ---- queue-based growth: no recursion, no crash ----
+  const strands = [], links = [], pulses = [];
+  const queue = [];
+  function pushStrand(hist, size, depth) {
+    const n = hist.length;
+    const s = { hist, n, len: 0, speed: 34 + size * 16, phase: rng(), pf: rand(0.5, 1.1), size, depth, x: 0, y: 0 };
+    for (let i = 1; i < n; i++) s.len += Math.hypot(hist[i].x - hist[i - 1].x, hist[i].y - hist[i - 1].y);
+    strands.push(s);
+    pulses.push({ s, d: rand(0, s.len), spd: rand(45, 130), sz: size });
+    if (rng() < 0.16 && depth < 7 && size > 0.35 && n > 4) {
+      const bi = 2 + ((rng() * (n - 3)) | 0);
+      const dir = Math.atan2(hist[bi + 1].y - hist[bi].y, hist[bi + 1].x - hist[bi].x) + (rng() - 0.5) * 1.7;
+      queue.push({ x: hist[bi].x, y: hist[bi].y, dir, dist: rand(40, 130), size: size * rand(0.6, 0.92), depth: depth + 1 });
+    }
+  }
+  function grow(x, y, dir, dist, size, depth) {
+    const hist = [{ x, y }];
+    const step = rand(8, 15);
+    let cx = x, cy = y, cd = dist, cdir = dir;
+    while (cd > 0) {
+      cdir += gauss() * 0.28;
+      const s = Math.min(step, cd);
+      cx += Math.cos(cdir) * s; cy += Math.sin(cdir) * s; cd -= s;
+      if (cx < -40 || cx > W + 40 || cy < -40 || cy > H + 40) break;
+      hist.push({ x: cx, y: cy });
+    }
+    if (hist.length > 1) pushStrand(hist, size, depth);
+  }
+  (function build() {
+    let roots = 0, guard = 0;
+    while (roots < 6 && guard++ < 60) {
+      const x = rand(80, W - 80), y = rand(80, H - 80);
+      let ok = true;
+      for (const s of strands) if ((s.hist[0].x - x) ** 2 + (s.hist[0].y - y) ** 2 < 110 * 110) { ok = false; break; }
+      if (!ok) continue;
+      roots++;
+      const size = rand(1.9, 2.9);
+      const arms = 2 + ((rng() * 3) | 0);
+      for (let a = 0; a < arms; a++) queue.push({ x, y, dir: rng() * TAU, dist: rand(160, 340), size, depth: 1 });
+    }
+    for (let i = 0; i < queue.length; i++) {
+      const q = queue[i];
+      grow(q.x, q.y, q.dir, q.dist, q.size, q.depth);
+    }
+    const roots2 = strands.filter(s => s.depth === 1);
+    for (let i = 0; i < 46; i++) {
+      const a = roots2[(rng() * roots2.length) | 0], b = roots2[(rng() * roots2.length) | 0];
+      if (a === b) continue;
+      const d = Math.hypot(a.hist[0].x - b.hist[0].x, a.hist[0].y - b.hist[0].y);
+      if (d > 22 && d < 200) links.push({ a, b, pulse: rng() * TAU, pf: rand(0.3, 0.9) });
+    }
+  })();
+
+  // ---- static dim-violet substrate: faint web + scattered motes ----
+  const subs = [];
+  (function buildSubstrate() {
+    for (let i = 0; i < 16; i++) {
+      const a = strands[(rng() * strands.length) | 0], b = strands[(rng() * strands.length) | 0];
+      if (a === b) continue;
+      const d = Math.hypot(a.hist[0].x - b.hist[0].x, a.hist[0].y - b.hist[0].y);
+      if (d > 30 && d < 260) subs.push({ x1: a.hist[0].x, y1: a.hist[0].y, x2: b.hist[0].x, y2: b.hist[0].y, a: rand(0.02, 0.05) });
+    }
+    for (let i = 0; i < 520; i++) subs.push({ x: rng() * W, y: rng() * H, r: rand(0.5, 1.7), a: rand(0.03, 0.11) });
+  })();
+
+  // ---- background: cold, dark, drifting ----
+  const bg = document.createElement('canvas'); bg.width = 200; bg.height = 200;
+  const bgc = bg.getContext('2d');
+  const bgImg = bgc.createImageData(200, 200);
+  const A = [9, 7, 14], B = [22, 17, 33];
+  function paintBg(time) {
+    const d = bgImg.data;
+    for (let y = 0; y < 200; y++) for (let x = 0; x < 200; x++) {
+      const n = fbm(x / 90 + time * 0.02, y / 90 - time * 0.013);
+      const t = clamp((n - 0.28) / 0.44, 0, 1);
+      const i = (y * 200 + x) * 4;
+      d[i] = mix(A[0], B[0], t); d[i + 1] = mix(A[1], B[1], t); d[i + 2] = mix(A[2], B[2], t); d[i + 3] = 255;
+    }
+    bgc.putImageData(bgImg, 0, 0);
+  }
+
+  function posAt(s, d) {
+    let rem = d;
+    for (let i = 1; i < s.n; i++) {
+      const dx = s.hist[i].x - s.hist[i - 1].x, dy = s.hist[i].y - s.hist[i - 1].y;
+      const l = Math.hypot(dx, dy);
+      if (rem <= l || i === s.n - 1) { const t = l > 0 ? rem / l : 0; return { x: mix(s.hist[i - 1].x, s.hist[i].x, t), y: mix(s.hist[i - 1].y, s.hist[i].y, t) }; }
+      rem -= l;
+    }
+    return { x: s.hist[s.n - 1].x, y: s.hist[s.n - 1].y };
+  }
+
+  function render(time) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#07050a'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.filter = 'blur(6px)'; ctx.drawImage(bg, 0, 0, W, H); ctx.restore();
+    const vg = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 560);
+    vg.addColorStop(0, 'rgba(7,5,10,0)'); vg.addColorStop(1, 'rgba(3,2,6,0.72)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    // static violet substrate
+    ctx.globalCompositeOperation = 'source-over';
+    for (const sub of subs) {
+      if (sub.x1 !== undefined) { ctx.strokeStyle = 'rgba(120,90,190,' + sub.a + ')'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sub.x1, sub.y1); ctx.lineTo(sub.x2, sub.y2); ctx.stroke(); }
+      else { ctx.fillStyle = 'rgba(150,110,220,' + sub.a + ')'; ctx.beginPath(); ctx.arc(sub.x, sub.y, sub.r, 0, TAU); ctx.fill(); }
+    }
+
+    // mycelial network + travelling pulses on an additive layer
+    octx.globalCompositeOperation = 'source-over';
+    octx.clearRect(0, 0, W, H);
+    octx.globalCompositeOperation = 'lighter';
+    for (const s of strands) {
+      const mx = (s.hist[0].x + s.hist[s.n - 1].x) / 2, my = (s.hist[0].y + s.hist[s.n - 1].y) / 2;
+      const g = fbm(mx / 170 + time * 0.05, my / 170 - time * 0.04);
+      const breathe = 0.5 + 0.5 * Math.sin(time * 0.6 + mx * 0.01);
+      const base = 0.1 + 0.13 * breathe * (0.4 + 0.6 * g);
+      octx.lineCap = 'round'; octx.lineJoin = 'round';
+      octx.strokeStyle = 'rgba(28,178,168,' + (base * 0.85).toFixed(3) + ')'; octx.lineWidth = 3.5;
+      octx.beginPath(); octx.moveTo(s.hist[0].x, s.hist[0].y); for (let i = 1; i < s.n; i++) octx.lineTo(s.hist[i].x, s.hist[i].y); octx.stroke();
+      octx.strokeStyle = 'rgba(150,245,235,' + (base * 0.8).toFixed(3) + ')'; octx.lineWidth = 1.2;
+      octx.beginPath(); octx.moveTo(s.hist[0].x, s.hist[0].y); for (let i = 1; i < s.n; i++) octx.lineTo(s.hist[i].x, s.hist[i].y); octx.stroke();
+    }
+    for (const L of links) {
+      const pulse = 0.5 + 0.5 * Math.sin(time * L.pf + L.pulse);
+      octx.strokeStyle = 'rgba(80,225,210,' + (0.05 + 0.1 * pulse).toFixed(3) + ')'; octx.lineWidth = 1;
+      octx.beginPath(); octx.moveTo(L.a.hist[0].x, L.a.hist[0].y); octx.lineTo(L.b.hist[0].x, L.b.hist[0].y); octx.stroke();
+    }
+    for (const p of pulses) {
+      const s = p.s, L = s.len, T = 3 + p.sz * 3.5;
+      const segs = 16;
+      for (let k = segs; k >= 0; k--) {
+        const d = p.d - k * T / segs; if (d < 0) break;
+        const a = (1 - k / segs) ** 1.6;
+        const pos = posAt(s, d);
+        if (k === 0) {
+          const r = 10 + p.sz * 5;
+          const grad = octx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, r);
+          grad.addColorStop(0, 'rgba(255,255,255,0.95)'); grad.addColorStop(0.14, 'rgba(175,255,250,0.9)'); grad.addColorStop(0.42, 'rgba(60,235,225,0.5)'); grad.addColorStop(1, 'rgba(30,190,180,0)');
+          octx.fillStyle = grad; octx.beginPath(); octx.arc(pos.x, pos.y, r, 0, TAU); octx.fill();
+        } else {
+          octx.fillStyle = 'rgba(95,245,235,' + (a * 0.8).toFixed(3) + ')'; octx.beginPath(); octx.arc(pos.x, pos.y, 0.8 + p.sz * 0.9 * a, 0, TAU); octx.fill();
+        }
+      }
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(off, 0, 0);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(196,182,160,0.42)'; ctx.font = 'italic 13px Georgia, serif'; ctx.textAlign = 'left';
+    ctx.fillText('the measuring of soft things', 22, H - 22);
+    ctx.font = 'italic 11px Georgia, serif'; ctx.fillStyle = 'rgba(196,182,160,0.3)';
+    ctx.fillText('a pulse runs the thread; the substrate holds', 22, H - 8);
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    let dt = (now - last) / 1000; last = now;
+    if (dt > 0.05) dt = 0.05;
+    const time = now / 1000;
+    for (const p of pulses) { p.d += p.spd * dt; if (p.d > p.s.len) { p.d -= p.s.len; p.s = strands[(rng() * strands.length) | 0]; p.spd = rand(45, 130); p.sz = p.s.size; } }
+    paintBg(time);
+    render(time);
+    requestAnimationFrame(frame);
+  }
+  paintBg(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
