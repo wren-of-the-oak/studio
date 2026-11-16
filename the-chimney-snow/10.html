@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Chimney Snow</title>
+<style>
+  html,body{margin:0;padding:0;background:#000;}
+  canvas{display:block;width:800px;height:800px;}
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="800"></canvas>
+<script>
+(function(){
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var W = 800, H = 800;
+  var TAU = Math.PI * 2;
+
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  var rand = mulberry32(1973);
+  function rr(a,b){ return a + rand()*(b-a); }
+  function gauss(){ return (rand()+rand()+rand()-1.5)/1.5; }
+  function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+
+  var CX = 400, BASE_Y = 690, TOP_Y = 292;
+  var N = 13;
+  var chimney = [];
+  for (var i=0;i<N;i++){
+    var t = i/(N-1);
+    var y = BASE_Y + (TOP_Y-BASE_Y)*t;
+    var w = 70*(1-0.72*t) + 13*Math.sin(t*12.5) + 6*gauss();
+    var ox = 10*Math.sin(t*9.1) + 5*Math.sin(t*23.0) + 5*gauss();
+    var hue = clamp(29 - 22*t + 5*gauss(), 4, 33);
+    var sat = clamp(48 - 24*t + 7*gauss(), 7, 52);
+    var li  = clamp(22 - 10*t + 7*gauss(), 5, 27);
+    chimney.push({x:CX+ox, y:y, w:Math.max(11,w), hue:hue, sat:sat, li:li});
+  }
+
+  function angShape(x,y,s,rot,pts,ir){
+    ctx.beginPath();
+    for (var k=0;k<pts;k++){
+      var a = rot + k*TAU/pts;
+      var r = s*(1 + 0.55*ir*gauss());
+      var px = x + Math.cos(a)*r;
+      var py = y + Math.sin(a)*r;
+      if (k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+  }
+  function poly(x,y,r,rot,pts){
+    ctx.beginPath();
+    for (var k=0;k<pts;k++){
+      var a = rot + k*TAU/pts;
+      var px = x + Math.cos(a)*r, py = y + Math.sin(a)*r;
+      if (k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+  }
+
+  var snow = [];
+  function makeSnow(init){
+    var depth = init ? rand() : 0.9 + 0.1*rand();
+    var baseR = 0.8 + Math.pow(depth,2.2)*3.6;
+    var pts = 3 + ((rand()*4)|0);
+    var ir = 0.25 + 0.55*rand();
+    var s = {
+      x: CX + (rand()*2-1)*360,
+      y: init ? rr(TOP_Y-30, BASE_Y+40) : rr(H+20, H+120),
+      baseR: baseR,
+      hue: clamp(214 - 55*depth, 176, 235),
+      sat: 18 + 40*depth,
+      li: 38 + 42*depth,
+      rot: rand()*TAU,
+      vr: (rand()*2-1)*0.02,
+      vx: (rand()*2-1)*0.12,
+      vy: 0.25 + rand()*0.95,
+      sway: rand()*TAU,
+      swf: 0.4 + rand()*1.6,
+      pts: pts, ir: ir
+    };
+    if (init) { s.x = clamp(s.x, 40, 760); s.y = clamp(s.y, -20, H+40); }
+    return s;
+  }
+  for (var i=0;i<150;i++) snow.push(makeSnow(true));
+
+  var motes = [];
+  for (var i=0;i<26;i++){
+    motes.push({x: CX + (rand()*2-1)*140, y: rr(TOP_Y, BASE_Y+20),
+                r: 0.4 + rand()*1.4, a: 0.1 + rand()*0.35, vy: 0.1 + rand()*0.5, ph: rand()*TAU});
+  }
+
+  function drawBackground(){
+    var lg = ctx.createLinearGradient(0,0,0,H);
+    lg.addColorStop(0, '#000000');
+    lg.addColorStop(0.55, '#010102');
+    lg.addColorStop(0.82, '#070503');
+    lg.addColorStop(0.96, '#130c06');
+    lg.addColorStop(1, '#1e140b');
+    ctx.fillStyle = lg;
+    ctx.fillRect(0,0,W,H);
+
+    var rg = ctx.createRadialGradient(CX, BASE_Y, 4, CX, BASE_Y, 260);
+    rg.addColorStop(0, 'rgba(255,150,70,0.55)');
+    rg.addColorStop(0.25, 'rgba(210,90,40,0.28)');
+    rg.addColorStop(0.6, 'rgba(120,50,30,0.10)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0,0,W,H);
+
+    var sg = ctx.createRadialGradient(CX, BASE_Y-10, 2, CX, BASE_Y-10, 70);
+    sg.addColorStop(0, 'rgba(255,220,170,0.5)');
+    sg.addColorStop(0.5, 'rgba(255,160,90,0.18)');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sg;
+    ctx.fillRect(0,0,W,H);
+
+    var vg = ctx.createRadialGradient(CX, 420, 120, CX, 420, 560);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  function drawChimney(time){
+    var flick = 0.85 + 0.15*Math.sin(time*0.006);
+    ctx.lineJoin = 'round';
+    for (var i=0;i<N;i++){
+      var c = chimney[i];
+      var next = chimney[i+1] || c;
+      var t = i/(N-1);
+
+      var bg = ctx.createLinearGradient(c.x-c.w, 0, c.x+c.w, 0);
+      bg.addColorStop(0, 'hsl('+(c.hue+6)+','+c.sat+'%,'+(c.li-7)+'%)');
+      bg.addColorStop(0.5, 'hsl('+c.hue+','+c.sat+'%,'+(c.li+3)+'%)');
+      bg.addColorStop(1, 'hsl('+(c.hue+6)+','+c.sat+'%,'+(c.li-9)+'%)');
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.moveTo(c.x-c.w, c.y);
+      ctx.lineTo(c.x+c.w, c.y);
+      ctx.lineTo(next.x+next.w, next.y);
+      ctx.lineTo(next.x-next.w, next.y);
+      ctx.closePath();
+      ctx.fill();
+
+      var sh = ctx.createLinearGradient(c.x-c.w*1.15, 0, c.x-c.w*0.4, 0);
+      sh.addColorStop(0, 'rgba(0,0,0,0.0)');
+      sh.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = sh;
+      ctx.beginPath();
+      ctx.moveTo(c.x-c.w*1.15, c.y);
+      ctx.lineTo(c.x-c.w*0.4, c.y);
+      ctx.lineTo(next.x-next.w*0.4, next.y);
+      ctx.lineTo(next.x-next.w*1.15, next.y);
+      ctx.closePath();
+      ctx.fill();
+
+      var hl = ctx.createLinearGradient(c.x+c.w*0.2, 0, c.x+c.w*0.75, 0);
+      hl.addColorStop(0, 'rgba(0,0,0,0)');
+      hl.addColorStop(1, 'rgba(255,170,90,'+(0.10*(1-t)+0.02)+')');
+      ctx.fillStyle = hl;
+      ctx.beginPath();
+      ctx.moveTo(c.x+c.w*0.2, c.y);
+      ctx.lineTo(c.x+c.w*0.75, c.y);
+      ctx.lineTo(next.x+next.w*0.75, next.y);
+      ctx.lineTo(next.x+next.w*0.2, next.y);
+      ctx.closePath();
+      ctx.fill();
+
+      var lipY = c.y + (next.y-c.y)*0.5;
+      var lipX = (c.x+next.x)/2;
+      var lipW = (c.w+next.w)/2;
+      var rim = ctx.createLinearGradient(0, lipY-3, 0, lipY+3);
+      rim.addColorStop(0, 'rgba(0,0,0,0)');
+      rim.addColorStop(0.5, 'rgba(20,12,8,0.55)');
+      rim.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.strokeStyle = rim;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(lipX-lipW, lipY);
+      ctx.lineTo(lipX+lipW, lipY);
+      ctx.stroke();
+    }
+
+    var topC = chimney[N-1];
+    var mouthR = Math.max(6, topC.w*0.5);
+    ctx.fillStyle = '#0a0705';
+    ctx.beginPath();
+    ctx.ellipse(topC.x, topC.y, mouthR, mouthR*0.42, 0, 0, TAU);
+    ctx.fill();
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    var mg = ctx.createRadialGradient(topC.x, topC.y, 1, topC.x, topC.y, mouthR*1.5);
+    mg.addColorStop(0, 'rgba(255,225,170,'+(0.85*flick)+')');
+    mg.addColorStop(0.4, 'rgba(255,150,70,'+(0.4*flick)+')');
+    mg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath();
+    ctx.ellipse(topC.x, topC.y, mouthR*1.5, mouthR*0.75, 0, 0, TAU);
+    ctx.fill();
+
+    var pg = ctx.createLinearGradient(0, topC.y-6, 0, BASE_Y+4);
+    pg.addColorStop(0, 'rgba(255,190,120,'+(0.22*flick)+')');
+    pg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.moveTo(topC.x-topC.w*0.55, topC.y);
+    ctx.lineTo(topC.x+topC.w*0.55, topC.y);
+    ctx.lineTo(chimney[0].x+chimney[0].w*0.55, BASE_Y+4);
+    ctx.lineTo(chimney[0].x-chimney[0].w*0.55, BASE_Y+4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMotes(time){
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i=0;i<motes.length;i++){
+      var m = motes[i];
+      m.y -= m.vy;
+      m.x += Math.sin(time*0.002 + m.ph)*0.2;
+      if (m.y < TOP_Y-80) { m.y = BASE_Y+20; m.x = CX + (rand()*2-1)*140; }
+      var a = m.a*(0.6 + 0.4*Math.sin(time*0.004 + m.ph));
+      ctx.fillStyle = 'rgba(255,180,110,'+a+')';
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.r, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawSnow(time){
+    for (var i=0;i<snow.length;i++){
+      var s = snow[i];
+      s.sway += 0.01;
+      s.x += s.vx + Math.sin(s.sway*s.swf)*0.18;
+      s.y -= s.vy;
+      s.rot += s.vr;
+      if (s.y < -30 || s.x < -40 || s.x > W+40){
+        snow[i] = makeSnow(false);
+        continue;
+      }
+      angShape(s.x, s.y, s.baseR, s.rot, s.pts, s.ir);
+      ctx.fillStyle = 'hsla('+s.hue+','+s.sat+'%,'+s.li+'%,0.92)';
+      ctx.fill();
+      if (s.baseR > 2.4){
+        ctx.strokeStyle = 'hsla('+s.hue+','+s.sat+'%,'+Math.min(90,s.li+25)+'%,0.5)';
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+    }
+  }
+
+  function frame(time){
+    drawBackground();
+    drawChimney(time);
+    drawMotes(time);
+    drawSnow(time);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
