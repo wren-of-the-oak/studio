@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <title>The Stall: Study — Penumbra</title>
+  <desc>Soft daylight from the upper left washes a wooden table and a rough cloth. A crate and a single acorn sit in it; the light falls gently and the shadows blur into ambient room light, with the cloth's weave breaking up the shadow they cast.</desc>
+
+  <defs>
+    <!-- Ambient room light: a broad, low-contrast wash from the upper left, not a searchlight. -->
+    <radialGradient id="room" gradientUnits="userSpaceOnUse" cx="300" cy="210" r="820">
+      <stop offset="0%"  stop-color="#f0e6d4" stop-opacity="0.92"/>
+      <stop offset="34%" stop-color="#d8cbb4" stop-opacity="0.60"/>
+      <stop offset="66%" stop-color="#6f6453" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#14110c" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Gentle darkening of the far corner so the room closes in softly. -->
+    <radialGradient id="corner" gradientUnits="userSpaceOnUse" cx="360" cy="330" r="760">
+      <stop offset="0%"  stop-color="#000000" stop-opacity="0"/>
+      <stop offset="62%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#0b0906" stop-opacity="0.55"/>
+    </radialGradient>
+
+    <!-- Table plank: warm, light-lit on top, dimming toward the front edge. -->
+    <linearGradient id="plank" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#8a6a45"/>
+      <stop offset="45%" stop-color="#6f5334"/>
+      <stop offset="100%" stop-color="#4a3420"/>
+    </linearGradient>
+
+    <!-- Rough cloth: a little cooler and lighter, catching the diffuse light. -->
+    <linearGradient id="cloth" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%"  stop-color="#cabfa6"/>
+      <stop offset="55%" stop-color="#b3a78d"/>
+      <stop offset="100%" stop-color="#8a7f68"/>
+    </linearGradient>
+
+    <!-- Crate faces, lit from the upper left. -->
+    <linearGradient id="crateTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b08a5c"/>
+      <stop offset="100%" stop-color="#8f6d45"/>
+    </linearGradient>
+    <linearGradient id="crateFace" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#8f6d45"/>
+      <stop offset="100%" stop-color="#59402a"/>
+    </linearGradient>
+
+    <!-- Acorn shading, lit from the left. -->
+    <radialGradient id="acornBody" gradientUnits="userSpaceOnUse" cx="384" cy="452" r="44">
+      <stop offset="0%"  stop-color="#b07a4e"/>
+      <stop offset="48%" stop-color="#7c4f2d"/>
+      <stop offset="100%" stop-color="#3e2513"/>
+    </radialGradient>
+    <radialGradient id="acornCap" gradientUnits="userSpaceOnUse" cx="382" cy="432" r="36">
+      <stop offset="0%"  stop-color="#735334"/>
+      <stop offset="55%" stop-color="#4a331c"/>
+      <stop offset="100%" stop-color="#241608"/>
+    </radialGradient>
+
+    <!-- Blurred contact shadows: the light is soft, so the edges are soft. -->
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+
+    <!-- Wood grain: horizontal streaks, very low amplitude.
+         The noise is centred on zero (offset cancels the 0.5 mean) so only the streaks show,
+         not a flat dark veil. -->
+    <filter id="grain" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.14" numOctaves="3" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix"
+        values="0 0 0 0 0.16
+                0 0 0 0 0.10
+                0 0 0 0 0.05
+                0.16 0.16 0.16 0 -0.24"/>
+    </filter>
+
+    <!-- Cloth weave: a coarse linen grid, drawn as light weft and dark warp threads. -->
+    <pattern id="weave" width="13" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(-2)">
+      <rect width="13" height="13" fill="none"/>
+      <rect x="0" y="0" width="13" height="2" fill="#000000" opacity="0.10"/>
+      <rect x="0" y="6" width="13" height="1.4" fill="#ffffff" opacity="0.10"/>
+      <rect x="0" y="0" width="2" height="13" fill="#000000" opacity="0.06"/>
+      <rect x="7" y="0" width="1.4" height="13" fill="#ffffff" opacity="0.07"/>
+    </pattern>
+
+    <!-- The cloth's own soft shadow on the table. -->
+    <filter id="clothShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+
+    <!-- Clip for the cloth so its weave and edge shadows stay inside it. -->
+    <clipPath id="clothClip">
+      <path d="M 118 430 C 168 420, 214 434, 262 426 C 320 416, 372 436, 430 424
+               C 480 414, 512 430, 548 422 L 556 612 C 502 626, 452 610, 398 622
+               C 344 634, 292 616, 240 628 C 196 636, 156 622, 120 632 Z"/>
+    </clipPath>
+
+    <!-- The light, as a mask: brightest upper-left, fading to room darkness. -->
+    <mask id="warmMask" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800">
+      <rect x="0" y="0" width="800" height="800" fill="#000000"/>
+      <ellipse cx="300" cy="210" rx="560" ry="520" fill="url(#room)"/>
+    </mask>
+  </defs>
+
+  <!-- Base: a mid-brown room that the light will lift. -->
+  <rect x="0" y="0" width="800" height="800" fill="#241d16"/>
+
+  <!-- Table surface + grain -->
+  <g>
+    <rect x="0" y="0" width="800" height="800" fill="url(#plank)"/>
+    <rect x="0" y="0" width="800" height="800" filter="url(#grain)"/>
+  </g>
+
+  <!-- Soft daylight wash -->
+  <rect x="0" y="0" width="800" height="800" fill="url(#room)"/>
+
+  <!-- The rough cloth on the table -->
+  <g>
+    <!-- its soft shadow, thrown slightly to the lower right -->
+    <path d="M 118 430 C 168 420, 214 434, 262 426 C 320 416, 372 436, 430 424
+             C 480 414, 512 430, 548 422 L 556 612 C 502 626, 452 610, 398 622
+             C 344 634, 292 616, 240 628 C 196 636, 156 622, 120 632 Z"
+          transform="translate(12,16)" fill="#1c140c" opacity="0.30" filter="url(#clothShadow)"/>
+    <!-- the cloth itself -->
+    <path d="M 118 430 C 168 420, 214 434, 262 426 C 320 416, 372 436, 430 424
+             C 480 414, 512 430, 548 422 L 556 612 C 502 626, 452 610, 398 622
+             C 344 634, 292 616, 240 628 C 196 636, 156 622, 120 632 Z" fill="url(#cloth)"/>
+    <!-- weave, edge shadows and a soft sheen, all clipped to the cloth -->
+    <g clip-path="url(#clothClip)">
+      <rect x="110" y="410" width="452" height="230" fill="url(#weave)"/>
+      <path d="M 118 430 C 168 420, 214 434, 262 426 C 320 416, 372 436, 430 424
+               C 480 414, 512 430, 548 422 L 556 612 C 502 626, 452 610, 398 622
+               C 344 634, 292 616, 240 628 C 196 636, 156 622, 120 632 Z"
+            fill="none" stroke="#5c5340" stroke-width="7" opacity="0.35" filter="url(#soft)"/>
+      <path d="M 118 430 C 168 420, 214 434, 262 426 C 320 416, 372 436, 430 424
+               C 480 414, 512 430, 548 422" fill="none"
+            stroke="#e8ddc4" stroke-width="2.5" opacity="0.45" mask="url(#warmMask)"/>
+      <ellipse cx="330" cy="500" rx="200" ry="120" fill="#f2e7cf" opacity="0.14" mask="url(#warmMask)"/>
+    </g>
+  </g>
+
+  <!-- Blurred contact shadows (the light is diffuse, so they spread) -->
+  <g filter="url(#soft)">
+    <ellipse cx="404" cy="486" rx="150" ry="40" fill="#120c06" opacity="0.40"/>
+    <ellipse cx="470" cy="492" rx="120" ry="34" fill="#120c06" opacity="0.30"/>
+    <ellipse cx="337" cy="588" rx="42" ry="12" fill="#0c0805" opacity="0.40"/>
+  </g>
+
+  <!-- Crate -->
+  <g>
+    <!-- back face -->
+    <polygon points="300,300 500,300 500,440 300,440" fill="url(#crateFace)"/>
+    <line x1="300" y1="353" x2="500" y2="353" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="300" y1="406" x2="500" y2="406" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="366" y1="300" x2="366" y2="440" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="433" y1="300" x2="433" y2="440" stroke="#3f2c18" stroke-width="3"/>
+    <!-- top face -->
+    <polygon points="260,330 540,330 500,300 300,300" fill="url(#crateTop)"/>
+    <line x1="286" y1="330" x2="319" y2="300" stroke="#5f4529" stroke-width="2"/>
+    <line x1="353" y1="330" x2="386" y2="300" stroke="#5f4529" stroke-width="2"/>
+    <line x1="420" y1="330" x2="453" y2="300" stroke="#5f4529" stroke-width="2"/>
+    <line x1="486" y1="330" x2="519" y2="300" stroke="#5f4529" stroke-width="2"/>
+    <!-- front face -->
+    <polygon points="260,330 540,330 540,470 260,470" fill="url(#crateFace)"/>
+    <line x1="260" y1="376" x2="540" y2="376" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="260" y1="423" x2="540" y2="423" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="330" y1="330" x2="330" y2="470" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="400" y1="330" x2="400" y2="470" stroke="#3f2c18" stroke-width="3"/>
+    <line x1="470" y1="330" x2="470" y2="470" stroke="#3f2c18" stroke-width="3"/>
+    <!-- the light catches the top-left edges -->
+    <polyline points="260,330 540,330 500,300 300,300" fill="none"
+      stroke="#e6c184" stroke-width="2" opacity="0.55" mask="url(#warmMask)"/>
+    <line x1="260" y1="330" x2="260" y2="470" stroke="#e6c184" stroke-width="2" opacity="0.4" mask="url(#warmMask)"/>
+  </g>
+
+  <!-- Acorn: set on the cloth in front of the crate (the translate also carries its gradients) -->
+  <g transform="translate(-55,85)">
+    <path d="M 380 430 C 362 434, 356 452, 360 470 C 364 490, 378 500, 392 500
+             C 406 500, 420 490, 424 470 C 428 452, 422 434, 404 430 Z"
+          fill="url(#acornBody)"/>
+    <ellipse cx="378" cy="452" rx="6" ry="14" fill="#bd855c" opacity="0.5"/>
+    <path d="M 356 432 C 352 420, 366 410, 392 410 C 418 410, 432 420, 428 432
+             C 420 438, 364 438, 356 432 Z" fill="url(#acornCap)"/>
+    <ellipse cx="392" cy="411" rx="11" ry="4" fill="#3a2614"/>
+    <path d="M 392 409 C 390 401, 393 396, 399 395" fill="none"
+      stroke="#4a331c" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Warm light on the lit faces -->
+  <g mask="url(#warmMask)">
+    <ellipse cx="360" cy="360" rx="160" ry="95" fill="#ffdca6" opacity="0.16"/>
+    <ellipse cx="337" cy="551" rx="60" ry="24" fill="#ffe0b0" opacity="0.20"/>
+  </g>
+
+  <!-- Close the room in softly at the far corner -->
+  <rect x="0" y="0" width="800" height="800" fill="url(#corner)"/>
+
+  <!-- Note -->
+  <text x="400" y="772" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
+    font-size="15" letter-spacing="1.5" fill="#9a8f7f" opacity="0.7">
+    THE STALL · STUDY — PENUMBRA
+  </text>
+</svg>
